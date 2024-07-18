@@ -1,6 +1,9 @@
 package org.example;
 
+import com.github.javafaker.Faker;
+
 import java.sql.*;
+import java.util.Random;
 import java.util.Scanner;
 
 public class Main {
@@ -17,27 +20,6 @@ public class Main {
 // Open a connection
             connection = DriverManager.getConnection(URL, USER, PASSWORD);
             System.out.println("Database connected successfully!");
-            // Create a statement object to send to the database
-            //var command = connection.createStatement();
-            //createTableAnimals(command);
-            //insertAnimal(connection);
-            // SQL query to select data
-            //String sql = "SELECT * FROM animals";
-            // Execute the query and get a result set
-            //var resultSet = command.executeQuery(sql);
-            // Process the result set
-//            while (resultSet.next()) {
-//                int id = resultSet.getInt("id");
-//                String name = resultSet.getString("name");
-//                String species = resultSet.getString("species");
-//                int age = resultSet.getInt("age");
-//                double weight = resultSet.getDouble("weight");
-//
-//                System.out.println("ID: " + id + ", Name: " + name + ", Species: " + species + ", Age: " + age + ", Weight: " + weight);
-//            }
-            //resultSet.close();
-            //command.close();
-            //connection.close();
 
             Scanner scanner = new Scanner(System.in);
             while (true) {
@@ -70,6 +52,10 @@ public class Main {
                         System.out.println("Невірний вибір. Спробуйте ще раз.");
                 }
             }
+
+            // Generate and insert 100,000 random animals
+//            generateAndInsertAnimals(connection, 100000);
+//            connection.close();
         } catch (SQLException e) {
             System.out.println("Begin working"+e.getMessage());
         }
@@ -191,5 +177,37 @@ public class Main {
             System.out.println("Тваринку з таким ID не знайдено.");
         }
         preparedStatement.close();
+    }
+
+    private static void generateAndInsertAnimals(Connection conn, int count) throws SQLException {
+        Faker faker = new Faker();
+        Random random = new Random();
+
+        String sql = "INSERT INTO animals (name, species, age, weight) VALUES (?, ?, ?, ?)";
+        PreparedStatement preparedStatement = conn.prepareStatement(sql);
+
+        for (int i = 0; i < count; i++) {
+            String name = faker.animal().name();
+            String species = faker.lorem().word();
+            int age = random.nextInt(15) + 1; // Вік від 1 до 15 років
+            double weight = 10 + (200 - 10) * random.nextDouble(); // Вага від 10 до 200 кг
+
+            preparedStatement.setString(1, name);
+            preparedStatement.setString(2, species);
+            preparedStatement.setInt(3, age);
+            preparedStatement.setDouble(4, weight);
+            preparedStatement.addBatch();
+
+            // Виконувати батч кожні 1000 записів для оптимізації
+            if (i % 1000 == 0) {
+                preparedStatement.executeBatch();
+            }
+        }
+
+        // Виконати залишок батчу
+        preparedStatement.executeBatch();
+        preparedStatement.close();
+
+        System.out.println(count + " random animals have been inserted into the database.");
     }
 }
